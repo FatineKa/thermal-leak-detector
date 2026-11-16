@@ -1,0 +1,6 @@
+.venv/
+data/
+*.joblib
+*.tar.gz
+.streamlit/secrets.toml
+.ipynb_checkpoints/
