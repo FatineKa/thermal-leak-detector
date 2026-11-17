@@ -1,6 +1,10 @@
 # télécharge un échantillon au hasard des dpe (diagnostics énergie) depuis l'api de l'ademe
 # à lancer depuis le dossier du projet :  python scripts/download_data.py
 # résultat : data/dpe_sample.parquet
+# autre taille :  python scripts/download_data.py --nb-lignes 2000000
+
+import argparse
+import time
 
 import pandas as pd
 import requests      # pour demander des données sur internet (http requests)
@@ -8,8 +12,14 @@ import requests      # pour demander des données sur internet (http requests)
 # adresse de l'api (api url)
 adresse = "https://data.ademe.fr/data-fair/api/v1/datasets/dpe03existant/lines"
 
-nb_lignes_voulues = 300_000  # nombre de logements à garder (rows)
-taille_page = 10_000         # nombre de logements par demande (page size)
+# réglages qu'on peut changer au lancement (arguments)
+parser = argparse.ArgumentParser()
+parser.add_argument("--nb-lignes", type=int, default=300_000)  # nombre de logements à garder (rows)
+parser.add_argument("--sortie", default="data/dpe_sample.parquet")  # fichier de résultat
+args = parser.parse_args()
+
+nb_lignes_voulues = args.nb_lignes
+taille_page = 10_000  # nombre de logements par demande (page size)
 
 # les colonnes à télécharger (columns)
 colonnes = [
@@ -50,8 +60,16 @@ pages = []
 nb_lignes = 0
 
 while nb_lignes < nb_lignes_voulues:
-    reponse = requests.get(lien, params=parametres, timeout=120)
-    reponse.raise_for_status()
+    # sur des centaines de demandes, une peut échouer : on réessaie jusqu'à 3 fois
+    for essai in range(3):
+        try:
+            reponse = requests.get(lien, params=parametres, timeout=120)
+            reponse.raise_for_status()
+            break
+        except requests.RequestException:
+            if essai == 2:
+                raise
+            time.sleep(10)
     donnees = reponse.json()
     pages.append(pd.DataFrame(donnees["results"]))
     nb_lignes += len(donnees["results"])
@@ -59,7 +77,7 @@ while nb_lignes < nb_lignes_voulues:
     lien = donnees["next"]  # l'api donne le lien de la page suivante (next page)
     parametres = None       # ce lien contient déjà les paramètres
 
-# colle toutes les pages ensemble, garde 300 000 lignes, et enregistre le fichier
+# colle toutes les pages ensemble, garde le bon nombre de lignes, et enregistre le fichier
 tableau = pd.concat(pages).head(nb_lignes_voulues)[colonnes]
-tableau.to_parquet("data/dpe_sample.parquet", index=False)
-print(f"{len(tableau):,} logements enregistrés dans data/dpe_sample.parquet")
+tableau.to_parquet(args.sortie, index=False)
+print(f"{len(tableau):,} logements enregistrés dans {args.sortie}")

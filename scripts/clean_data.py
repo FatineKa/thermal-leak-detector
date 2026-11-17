@@ -3,12 +3,19 @@
 # entrée : data/dpe_sample.parquet
 # résultats : data/train/train.parquet et data/test/test.parquet
 
+import argparse
 import os
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-brut = pd.read_parquet("data/dpe_sample.parquet")
+# réglages qu'on peut changer au lancement (arguments)
+parser = argparse.ArgumentParser()
+parser.add_argument("--entree", default="data/dpe_sample.parquet")  # fichier brut
+parser.add_argument("--sortie", default="data")  # dossier qui recevra train/ et test/
+args = parser.parse_args()
+
+brut = pd.read_parquet(args.entree)
 print(f"{len(brut):,} logements au départ")
 
 
@@ -48,6 +55,8 @@ df = pd.DataFrame({
     "hauteur": brut["hauteur_sous_plafond"],
     # changement de règle du 1er janvier 2026 : 1 = après, 0 = avant
     "apres_2026": (pd.to_datetime(brut["date_etablissement_dpe"]) >= "2026-01-01").astype(int),
+    # date du dpe : pas utilisée par le modèle, sert aux tests dans le temps
+    "date_dpe": pd.to_datetime(brut["date_etablissement_dpe"]),
 })
 
 # enlève les immeubles entiers : on prédit pour un seul logement
@@ -66,8 +75,8 @@ print(f"{len(df):,} logements après nettoyage")
 # coupe : 80 % entraînement (train), 20 % test, avec la même part de chaque classe
 train, test = train_test_split(df, test_size=0.2, stratify=df["classe"], random_state=42)
 
-os.makedirs("data/train", exist_ok=True)
-os.makedirs("data/test", exist_ok=True)
-train.to_parquet("data/train/train.parquet", index=False)
-test.to_parquet("data/test/test.parquet", index=False)
+os.makedirs(f"{args.sortie}/train", exist_ok=True)
+os.makedirs(f"{args.sortie}/test", exist_ok=True)
+train.to_parquet(f"{args.sortie}/train/train.parquet", index=False)
+test.to_parquet(f"{args.sortie}/test/test.parquet", index=False)
 print(f"entraînement : {len(train):,} logements, test : {len(test):,} logements")

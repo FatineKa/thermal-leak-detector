@@ -4,3 +4,5 @@ data/
 *.tar.gz
 .streamlit/secrets.toml
 .ipynb_checkpoints/
+lambda/*.zip
+__pycache__/

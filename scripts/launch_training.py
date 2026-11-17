@@ -21,9 +21,10 @@ estimateur = SKLearn(
 )
 
 # lance l'entraînement : chaque canal (channel) devient un dossier sur la machine
+donnees = f"s3://{bucket}/2m/clean"  # les 2 millions de logements (processing job)
 estimateur.fit({
-    "train": f"s3://{bucket}/clean/train/",
-    "test": f"s3://{bucket}/clean/test/",
+    "train": f"{donnees}/train/",
+    "test": f"{donnees}/test/",
 })
 
 print("modèle enregistré ici :", estimateur.model_data)
