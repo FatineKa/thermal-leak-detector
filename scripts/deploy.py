@@ -7,9 +7,9 @@ from sagemaker.serverless import ServerlessInferenceConfig
 from sagemaker.sklearn.model import SKLearnModel
 
 role = "arn:aws:iam::376943093487:role/service-role/AmazonSageMaker-ExecutionRole-20261116T221626"
-# le modèle entraîné sur 1,5 million de logements (training job)
+# le modèle entraîné sur 1,5 million de logements, réglages trouvés par sagemaker (training job)
 modele_s3 = ("s3://sagemaker-thermal-leak-3769/models/"
-             "sagemaker-scikit-learn-2026-11-16-23-04-40-192/output/model.tar.gz")
+             "sagemaker-scikit-learn-2026-11-18-00-19-40-557/output/model.tar.gz")
 
 modele = SKLearnModel(
     model_data=modele_s3,

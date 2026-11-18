@@ -98,22 +98,24 @@ flowchart LR
 
 ## Results
 
-| | Baseline | Model, 221k rows (local) | Model, 1.5M rows (SageMaker) |
-|---|---|---|---|
-| Exact class | 44.4% | 47.9% | 48.7% |
-| Within one class | 86.4% | 86.5% | 87.1% |
-| F1 macro | 0.28 | 0.42 | 0.43 |
-| Passoire (F/G) recall | 24.7% | 43.6% | 42.3% |
-| Passoire (F/G) precision | 52.6% | 44.9% | 45.9% |
+| | Baseline | Model, 221k rows (local) | Model, 1.5M rows (SageMaker) | Model, 1.5M rows + SageMaker tuning |
+|---|---|---|---|---|
+| Exact class | 44.4% | 47.9% | 48.7% | **50.7%** |
+| Within one class | 86.4% | 86.5% | 87.1% | 86.9% |
+| F1 macro | 0.28 | 0.42 | 0.43 | **0.44** |
+| Passoire (F/G) recall | 24.7% | 43.6% | 42.3% | **44.9%** |
+| Passoire (F/G) precision | 52.6% | 44.9% | 45.9% | 43.5% |
 
 - Baseline: most frequent class per (construction period × heating energy)
-- Model: XGBoost in a scikit-learn pipeline, softened class weights, tuned hyperparameters
+- Model: XGBoost in a scikit-learn pipeline, softened class weights
+- Deployed model: last column (1,000 trees, depth 10, learning rate 0.2)
 
 ## Findings
 
 - 100k → 221k training rows: +0.2 points accuracy
 - 221k → 1.5M training rows: +0.8 points accuracy
-- Hyperparameter tuning: +0.7 F1 points
+- Hyperparameter tuning in a notebook (100k rows, 12 random tries): +0.7 F1 points
+- SageMaker automatic model tuning (1.5M rows, 20 Bayesian tries, chosen on a validation split): +1.8 F1 points, +2.0 points accuracy
 - The limit comes from the available information, not the amount of data or the model
 
 ## Limitations
@@ -126,13 +128,13 @@ flowchart LR
 
 ## Cost
 
-- Whole project so far: about $0.30 (AWS credits)
+- Whole project so far: about $2 (AWS credits)
 - Idle: about $0/month (serverless endpoint, Lambda, a few MB in S3)
-- Processing job (2M rows): about $0.15 · training job: about $0.05
+- Processing job (2M rows): about $0.15 · training job: about $0.05 to $0.10 · tuning (20 jobs): about $1.50
 
 ## Stack
 
-- AWS: S3, SageMaker AI (processing, training, serverless inference), Lambda
+- AWS: S3, SageMaker AI (processing, training, automatic model tuning, serverless inference), Lambda
 - Python: pandas, scikit-learn, XGBoost, Streamlit, pytest
 
 ## Structure
@@ -140,7 +142,7 @@ flowchart LR
 ```
 notebooks/   exploration, model, tuning
 src/         train.py, inference.py
-scripts/     download, clean, launch processing, launch training, deploy, teardown
+scripts/     download, clean, launch processing, launch training, launch tuning, deploy, teardown
 lambda/      handler.py
 app/         streamlit_app.py
 tests/       test_inference.py
@@ -155,6 +157,7 @@ python src/train.py
 python -m pytest tests
 
 python scripts/launch_processing.py        # 2M rows on SageMaker
+python scripts/launch_tuning.py
 python scripts/launch_training.py
 python scripts/deploy.py
 python scripts/teardown.py
@@ -264,22 +267,24 @@ flowchart LR
 
 ## Résultats
 
-| | Baseline | Modèle, 221 000 lignes (local) | Modèle, 1,5 M lignes (SageMaker) |
-|---|---|---|---|
-| Classe exacte | 44,4 % | 47,9 % | 48,7 % |
-| À une classe près | 86,4 % | 86,5 % | 87,1 % |
-| F1 macro | 0,28 | 0,42 | 0,43 |
-| Passoire (F/G) rappel | 24,7 % | 43,6 % | 42,3 % |
-| Passoire (F/G) précision | 52,6 % | 44,9 % | 45,9 % |
+| | Baseline | Modèle, 221 000 lignes (local) | Modèle, 1,5 M lignes (SageMaker) | Modèle, 1,5 M lignes + réglage SageMaker |
+|---|---|---|---|---|
+| Classe exacte | 44,4 % | 47,9 % | 48,7 % | **50,7 %** |
+| À une classe près | 86,4 % | 86,5 % | 87,1 % | 86,9 % |
+| F1 macro | 0,28 | 0,42 | 0,43 | **0,44** |
+| Passoire (F/G) rappel | 24,7 % | 43,6 % | 42,3 % | **44,9 %** |
+| Passoire (F/G) précision | 52,6 % | 44,9 % | 45,9 % | 43,5 % |
 
 - Baseline : classe la plus fréquente par (période de construction × énergie de chauffage)
-- Modèle : XGBoost dans un pipeline scikit-learn, poids de classes adoucis, hyperparamètres réglés
+- Modèle : XGBoost dans un pipeline scikit-learn, poids de classes adoucis
+- Modèle en ligne : dernière colonne (1 000 arbres, profondeur 10, taux d'apprentissage 0,2)
 
 ## Constats
 
 - 100 000 → 221 000 lignes d'entraînement : +0,2 point d'exactitude
 - 221 000 → 1,5 M lignes d'entraînement : +0,8 point d'exactitude
-- Réglage des hyperparamètres : +0,7 point de F1
+- Réglage des hyperparamètres dans un notebook (100 000 lignes, 12 essais au hasard) : +0,7 point de F1
+- Réglage automatique SageMaker (1,5 M lignes, 20 essais bayésiens, choisis sur une validation) : +1,8 point de F1, +2,0 points d'exactitude
 - La limite vient des informations disponibles, pas de la quantité de données ni du modèle
 
 ## Limites
@@ -292,13 +297,13 @@ flowchart LR
 
 ## Coût
 
-- Projet entier jusqu'ici : environ 0,30 $ (crédits AWS)
+- Projet entier jusqu'ici : environ 2 $ (crédits AWS)
 - Au repos : environ 0 $/mois (endpoint serverless, Lambda, quelques Mo dans S3)
-- Processing job (2 M lignes) : environ 0,15 $ · training job : environ 0,05 $
+- Processing job (2 M lignes) : environ 0,15 $ · training job : environ 0,05 à 0,10 $ · réglage (20 jobs) : environ 1,50 $
 
 ## Outils
 
-- AWS : S3, SageMaker AI (processing, training, inférence serverless), Lambda
+- AWS : S3, SageMaker AI (processing, training, réglage automatique, inférence serverless), Lambda
 - Python : pandas, scikit-learn, XGBoost, Streamlit, pytest
 
 ## Structure
@@ -306,7 +311,7 @@ flowchart LR
 ```
 notebooks/   exploration, modèle, réglages
 src/         train.py, inference.py
-scripts/     téléchargement, nettoyage, lancement processing, lancement entraînement, déploiement, suppression
+scripts/     téléchargement, nettoyage, lancement processing, lancement entraînement, lancement réglage, déploiement, suppression
 lambda/      handler.py
 app/         streamlit_app.py
 tests/       test_inference.py
@@ -321,6 +326,7 @@ python src/train.py
 python -m pytest tests
 
 python scripts/launch_processing.py        # 2 M lignes sur SageMaker
+python scripts/launch_tuning.py
 python scripts/launch_training.py
 python scripts/deploy.py
 python scripts/teardown.py
